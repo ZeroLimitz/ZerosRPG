@@ -14,20 +14,24 @@ public class Game extends Canvas implements Runnable {
 	private static final long serialVersionUID = 1L;
 	
 	public static final String TITLE = "Darkness Vale";
-	public static final int HEIGHT = 240;
-	public static final int WIDTH = 240;
+	public static final int HEIGHT = 380;
+	public static final int WIDTH = 380;
 	public static final int SCALE = 2;
 	public static Dimension GAME_DIM = new Dimension(WIDTH * SCALE, HEIGHT * SCALE);
+	public int fps = 0, updates = 0, tickCount = 0;
 	
 	private BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
 	private int[] pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
 	
 	private Screen screen;
+	public Level level;
+	public InputHandler input = new InputHandler(this);
 	
-	public boolean running = false;
+	public volatile boolean running = false;
 	Random random = new Random();
+	public int xScroll = 0, yScroll = 0;
 	
-	public void start(){
+	public synchronized void start(){
 		running = true;
 		new Thread(this).start();
 	}
@@ -39,19 +43,44 @@ public class Game extends Canvas implements Runnable {
 		
 		screen = new Screen(WIDTH, HEIGHT);
 		
-		for (int y = 0; y < 16; y++) {
-			for (int x = 0; x < 16; x++) {
-				Sprite sprite = Sprites.terrain[0][0];
-				screen.renderSprite(x * sprite.w, y * sprite.h, sprite);
-			}
-		}
+		level = new Level(16, 16);
 	}
 	
 	public void run() {
 		init();
+		long lastTime = System.nanoTime();
+		double nsPerTick = 1000000000 / 60D;
+		
+		int ticks = 0;
+		int frames = 0;
+		
+		long lastTimer = System.currentTimeMillis();
+		double delta = 0;
+		
 		while(running){
-			tick();
-			render();
+			long now = System.nanoTime();
+			delta += (now - lastTime) / nsPerTick;
+			lastTime = now;
+			boolean shouldRender = true;
+			
+			while(delta >= 1){
+				ticks++;
+				delta -= 1;
+				tick();
+				shouldRender = true;
+			}
+			
+			if(shouldRender){
+				frames++;
+				render();
+			}
+			
+			if(System.currentTimeMillis() - lastTimer >= 1000){
+				lastTimer += 1000;
+				System.out.println("FPS " + frames + "," + " " + "Ticks: " + ticks + "," + " " + "Tick Count: " + tickCount);
+				frames = 0;
+				ticks = 0;
+			}
 			
 			try {
 				Thread.sleep(5);
@@ -61,21 +90,29 @@ public class Game extends Canvas implements Runnable {
 		}
 	}
 	
-	public void stop(){
+	public synchronized void stop(){
 		running = false;
 	}
 	
 	public void tick(){
+		tickCount++;
+		if(input.right) xScroll++;
+		if(input.left) xScroll--;
+		if(input.up) yScroll--;
+		if(input.down) yScroll++;
 	}
 	
 	public void render(){
 		BufferStrategy bs = getBufferStrategy();
 		
 		if(bs == null){
-			createBufferStrategy(2);
+			createBufferStrategy(3);
 			requestFocus();
 			return;
 		}
+		
+		level.renderBackground(xScroll, yScroll, screen);
+		
 		
 		for (int y = 0; y < screen.h; y++) {
 			for (int x = 0; x < screen.w; x++) {

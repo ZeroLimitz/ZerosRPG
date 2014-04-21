@@ -30,11 +30,9 @@ public class Screen {
 		}
 	}
 	
-	public void setxOffs(int offs){
-		xOffset = offs;
+	public void setOffs(int xoffs, int yoffs){
+		xOffset = xoffs;
+		yOffset = yoffs;
 	}
-	
-	public void setyOffs(int offs){
-		yOffset = offs;
-	}
+
 }
